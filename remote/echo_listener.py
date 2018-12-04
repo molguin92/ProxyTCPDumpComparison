@@ -1,6 +1,7 @@
 from socketserver import ThreadingTCPServer, BaseRequestHandler
 from socket import SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP, TCP_KEEPIDLE, \
     TCP_KEEPCNT, TCP_KEEPINTVL
+import click
 
 
 def set_keepalive_linux(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
@@ -32,9 +33,13 @@ class EchoHandler(BaseRequestHandler):
                 return
 
 
-if __name__ == '__main__':
-    port = 1337
-    host = '0.0.0.0'
-
+@click.command(help='Echo listen server')
+@click.argument('host', type=str, default='0.0.0.0')
+@click.argument('port', type=int, default=1337)
+def main(host: str, port: int):
     with ThreadingTCPServer((host, port), EchoHandler) as server:
         server.serve_forever()
+
+
+if __name__ == '__main__':
+    main()
