@@ -1,5 +1,6 @@
 import socket
 import os
+import sys
 import time
 import signal
 import click
@@ -55,10 +56,10 @@ def send_recv(conn: socket,
 def main(host: str, port: int, samples: int) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as conn:
         def sigint_handler(sig, frame):
-            print('Shut down gracefully...')
+            print('Shut down gracefully...', file=sys.stderr, flush=True)
             conn.shutdown(socket.SHUT_RDWR)
             conn.close()
-            print('Done!')
+            print('Done!', file=sys.stderr, flush=True)
             exit(0)
 
         signal.signal(signal.SIGINT, sigint_handler)
@@ -66,7 +67,9 @@ def main(host: str, port: int, samples: int) -> None:
         results = send_recv(conn, samples=samples)
         conn.shutdown(socket.SHUT_RDWR)
 
-        print(results.mean(), results.max(), results.min())
+        for i in results:
+            print(i, file=sys.stdout, flush=False)
+        sys.stdout.flush()
 
 
 if __name__ == '__main__':
