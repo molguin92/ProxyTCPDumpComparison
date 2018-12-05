@@ -1,8 +1,9 @@
-import socket
 import os
+import signal
+import socket
 import sys
 import time
-import signal
+
 import click
 import numpy as np
 
@@ -12,6 +13,7 @@ def send_recv(conn: socket,
               samples: int = 500) -> np.ndarray:
     rtts = np.empty(samples)
     count = 0
+    initialized = False
     while count < samples:
         # generate an array of random bytes
         data = os.urandom(data_len)
@@ -34,7 +36,10 @@ def send_recv(conn: socket,
         dt = (time.time() - ti) * 1000.0
 
         # if data is "corrupted" for some weird reason, don't count the stats
-        if incoming != data:
+        # also, discard the first sample to avoid effects due to connection
+        # setup times and such
+        if not initialized or incoming != data:
+            initialized = True
             continue
 
         # store stats
