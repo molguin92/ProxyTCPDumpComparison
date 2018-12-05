@@ -3,10 +3,15 @@ import os
 import time
 import signal
 import click
+import numpy as np
 
 
-def send_recv(conn: socket, data_len: int = 512) -> None:
-    while True:
+def send_recv(conn: socket,
+              data_len: int = 512,
+              samples: int = 500) -> np.ndarray:
+    rtts = np.empty(samples)
+    count = 0
+    while count < samples:
         # generate an array of random bytes
         data = os.urandom(data_len)
         conn.sendall(data)
@@ -23,16 +28,31 @@ def send_recv(conn: socket, data_len: int = 512) -> None:
             incoming.append(d)
             total_recv += len(d)
         incoming = b''.join(incoming)
-        assert incoming == data
 
+        # timestamp delta t in milliseconds
         dt = (time.time() - ti) * 1000.0
-        print('RTT: {} milliseconds'.format(dt))
+
+        # if data is "corrupted" for some weird reason, don't count the stats
+        if incoming != data:
+            continue
+
+        # store stats
+        rtts[count] = dt
+        count += 1
+        time.sleep(0.01)  # sleep 10 ms so as to not overload the network
+
+    return rtts
 
 
-@click.command(help='Echo client')
-@click.argument('host', type=str, default='0.0.0.0')
-@click.argument('port', type=int, default=1337)
-def main(host: str, port: int) -> None:
+@click.command(help='RTT benchmarking client. Connects to an echo server '
+                    'running on HOST:PORT and measures round trip times.')
+@click.argument('host', type=str)
+@click.argument('port', type=int)
+@click.option('-s', '--samples',
+              type=int, default=500,
+              help='Number of samples to take',
+              show_default=True)
+def main(host: str, port: int, samples: int) -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as conn:
         def sigint_handler(sig, frame):
             print('Shut down gracefully...')
@@ -43,7 +63,10 @@ def main(host: str, port: int) -> None:
 
         signal.signal(signal.SIGINT, sigint_handler)
         conn.connect((host, port))
-        send_recv(conn)
+        results = send_recv(conn, samples=samples)
+        conn.shutdown(socket.SHUT_RDWR)
+
+        print(results.mean(), results.max(), results.min())
 
 
 if __name__ == '__main__':
