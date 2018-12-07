@@ -1,4 +1,4 @@
-import multiprocessing
+from threading import Thread
 import os
 import shlex
 import signal
@@ -22,13 +22,6 @@ BENCHMARK_TYPES = ['base', 'tcpdump', 'proxy']
 TCPDUMP_PCAP = '/tmp/dump.pcap'
 TCPDUMP_CMD_PRE = ['tcpdump', '-s 0']
 TCPDUMP_CMD_POST = [f'-w {TCPDUMP_PCAP}']
-
-
-def run_proxy(local_port: int,
-              remote_host: str,
-              remote_port: int) -> None:
-    with Proxy(local_port, remote_host, remote_port) as proxy:
-        proxy.serve_forever()
 
 
 class Benchmark:
@@ -86,12 +79,11 @@ class Benchmark:
         # docker bridge network, see
         # https://docs.docker.com/v17.09/engine/userguide/networking/#the
         # -default-bridge-network
-        proxy_proc = multiprocessing.Process(
-            target=run_proxy,
-            args=(proxy_port, self.host, self.port),
-            daemon=False
-        )
-        proxy_proc.start()
+        proxy = Proxy('0.0.0.0', proxy_port, self.host, self.port)
+        # start listening needs to be done asynchronously, but a thread is
+        # enough
+        t = Thread(target=proxy.start)
+        t.start()
         time.sleep(0.1)  # give proxy time to connect and bind
 
         # proxy running, run benchmark
@@ -100,8 +92,8 @@ class Benchmark:
                    port_override=proxy_port)
 
         # shut down proxy after benchmark finishes
-        # TODO: send sigint instead!!
-        proxy_proc.terminate()
+        t.join()
+        proxy.stop()
 
     def _base(self, bench_type: str,
               host_override: str = None,
@@ -111,6 +103,7 @@ class Benchmark:
 
         print(f'Performing <{bench_type}> benchmark.', file=sys.stderr)
         print(f'Target CPU load: {self.cpu_load}', file=sys.stderr)
+        sys.stderr.flush()
 
         # port/host override for use with the proxy
         if host_override:

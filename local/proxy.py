@@ -1,7 +1,6 @@
 import multiprocessing.pool
 import signal
 import socket
-import socketserver
 import sys
 import time
 from typing import Any
@@ -36,72 +35,87 @@ def link_with_load(in_sock: socket.socket, out_sock: socket.socket):
         except Exception as e:
             break
 
-    out_sock.shutdown(socket.SHUT_WR)
-    in_sock.shutdown(socket.SHUT_RD)
-    out_sock.close()
-    in_sock.close()
+    try:
+        out_sock.shutdown(socket.SHUT_WR)
+        in_sock.shutdown(socket.SHUT_RD)
+        out_sock.close()
+        in_sock.close()
+    except Exception:
+        pass
 
 
-class ProxyHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        uplink_proc = multiprocessing.Process(
-            target=link_with_load,
-            args=(self.request, self.server.client_socket)
-        )
+class Proxy:
+    def __init__(self, listen_host: str, listen_port: int,
+                 remote_host: str, remote_port: int):
+        self.listen_host = listen_host
+        self.listen_port = listen_port
+        self.remote_host = remote_host
+        self.remote_port = remote_port
 
-        downlink_proc = multiprocessing.Process(
-            target=link_with_load,
-            args=(self.server.client_socket, self.request)
-        )
+        self.conn = None
+        self.running = False
 
-        uplink_proc.start()
-        downlink_proc.start()
-        # wait for processes to end...
-        uplink_proc.join()
-        downlink_proc.join()
+        self.uplink_proc = None
+        self.downlink_proc = None
 
-        self.request.shutdown(socket.SHUT_RDWR)
-        self.server.client_socket.shutdown(socket.SHUT_RDWR)
-
-        # shutdown server
-        # needs to be done in "asynchronous" fashion
-
-
-class Proxy(socketserver.TCPServer):
-    def __init__(self, listen_port: int, remote_host: str, remote_port: int):
-        # bind
-        super().__init__(('0.0.0.0', listen_port), ProxyHandler)
-
-        self.host = remote_host
-        self.port = remote_port
-
-        # connect
+        # prepare sockets
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect((self.host, self.port))
 
-        print(
-            'Proxy listening on 0.0.0.0:{}, forwarding to {}:{}' \
-                .format(listen_port, remote_host, remote_port),
-            file=sys.stderr
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    def start(self):
+        # start listening
+        self.server_socket.bind((self.listen_host, self.listen_port))
+        self.server_socket.listen(1)
+
+        # connect to remote
+        self.client_socket.connect((self.remote_host, self.remote_port))
+
+        print(f'Proxy connected to {self.remote_host}:{self.remote_port} and '
+              f'listening on {self.listen_host}:{self.listen_port}',
+              file=sys.stderr)
+
+        # wait for a connection
+        (self.conn, addr) = self.server_socket.accept()
+
+        # start relaying
+        print(f'Accepted connection from {addr[0]}:{addr[1]}, relaying...',
+              file=sys.stderr)
+
+        self.uplink_proc = multiprocessing.Process(
+            target=link_with_load,
+            args=(self.conn, self.client_socket)
         )
 
-    def handle_request(self):
-        def signal_handler(arg0, arg1):
-            raise _ShutDownException('Shutdown before receiving a request!')
+        self.downlink_proc = multiprocessing.Process(
+            target=link_with_load,
+            args=(self.client_socket, self.conn)
+        )
 
-        signal.signal(signal.SIGINT, signal_handler)
-        try:
-            super().handle_request()
-        except _ShutDownException as e:
-            print(e.msg, file=sys.stderr)
-            return
+        self.uplink_proc.start()
+        self.downlink_proc.start()
+        self.running = True
 
-    def server_close(self):
-        try:
+    def stop(self):
+        # shutdown by closing all sockets
+        if self.running:
+            print(f'Shutting down proxy...', file=sys.stderr)
+
+            if self.conn:
+                self.conn.shutdown(socket.SHUT_RDWR)
+                self.conn.close()
+
+            self.server_socket.shutdown(socket.SHUT_RDWR)
+            self.client_socket.shutdown(socket.SHUT_RDWR)
+            self.server_socket.close()
             self.client_socket.close()
-        except Exception:
-            pass
-        super().server_close()
+
+            # wait for processes
+            if self.uplink_proc:
+                self.uplink_proc.join()
+            if self.downlink_proc:
+                self.downlink_proc.join()
 
 
 @click.command(help='TCP proxy. Listens on localhost:LOCAL_PORT and resends '
@@ -110,12 +124,14 @@ class Proxy(socketserver.TCPServer):
 @click.argument('remote_host', type=str)
 @click.argument('remote_port', type=int)
 def main(local_port: int, remote_host: str, remote_port: int) -> None:
-    def sig_handler(arg0, arg1):
-        pass
+    proxy = Proxy('0.0.0.0', local_port, remote_host, remote_port)
+    proxy.start()
 
-    signal.signal(signal.SIGINT, sig_handler)
-    with Proxy(local_port, remote_host, remote_port) as proxy:
-        proxy.handle_request()
+    # set up a signal handler
+    def signal_handler(a0, a1):
+        proxy.stop()
+
+    signal.signal(signal.SIGINT, signal_handler)
 
 
 if __name__ == '__main__':
