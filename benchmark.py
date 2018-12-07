@@ -1,10 +1,10 @@
-from threading import Thread
 import os
 import shlex
 import signal
 import subprocess
 import sys
 import time
+from threading import Thread
 
 import click
 import docker
@@ -12,6 +12,7 @@ import docker.errors
 import numpy as np
 
 from local.proxy import Proxy
+from postprocess import plot_results
 
 # this script deploys the experiments
 DOCKER_CPULOAD = 'molguin/cpuload'
@@ -34,9 +35,9 @@ class Benchmark:
         self.results = {t: None for t in BENCHMARK_TYPES}
 
     def run(self):
+        self.base_benchmark()
         self.proxy_benchmark()
-        # self.base_benchmark()
-        # self.tcpdump_benchmark()
+        self.tcpdump_benchmark()
 
     def base_benchmark(self):
         self._base('base')
@@ -155,11 +156,14 @@ class Benchmark:
 @click.argument('host', type=str)
 @click.argument('port', type=int)
 def main(host: str, port: int):
+    results = {}
     for cpu_load in CPU_LOADS:
         benchmark = Benchmark(host, port, cpu_load)
         benchmark.run()
 
-        print(benchmark.results)
+        results[cpu_load] = benchmark.results
+
+    plot_results(results)
 
 
 if __name__ == '__main__':
