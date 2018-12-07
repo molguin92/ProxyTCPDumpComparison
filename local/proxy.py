@@ -33,6 +33,8 @@ def link_with_load(in_sock: socket.socket, out_sock: socket.socket):
         except _ShutDownException as e:
             print('Received shutdown signal...', file=sys.stderr)
             break
+        except Exception as e:
+            break
 
     out_sock.shutdown(socket.SHUT_WR)
     in_sock.shutdown(socket.SHUT_RD)
