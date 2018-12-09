@@ -160,9 +160,12 @@ def main(host: str, port: int):
     for cpu_load in CPU_LOADS:
         benchmark = Benchmark(host, port, cpu_load)
         benchmark.run()
+        print('Benchmarking done.', file=sys.stderr)
 
         results[cpu_load] = benchmark.results
+        print(results, file=sys.stderr)
 
+    print('Plotting...', file=sys.stderr)
     plot_results(results)
 
 
