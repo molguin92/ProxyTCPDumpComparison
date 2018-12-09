@@ -50,7 +50,8 @@ class Benchmark:
         if os.path.exists(TCPDUMP_PCAP):
             os.remove(TCPDUMP_PCAP)
 
-        filter_cmds = ' or '.join([f'src {self.host}', f'dst {self.host}'])
+        filter_cmds = f'(src {self.host} or dst {self.host}) and port' \
+            f' {self.port}'
         dump_cmd = shlex.split(' '.join(TCPDUMP_CMD_PRE
                                         + [filter_cmds]
                                         + TCPDUMP_CMD_POST))
@@ -163,7 +164,6 @@ def main(host: str, port: int):
         print('Benchmarking done.', file=sys.stderr)
 
         results[cpu_load] = benchmark.results
-        print(results, file=sys.stderr)
 
     print('Plotting...', file=sys.stderr)
     plot_results(results)
