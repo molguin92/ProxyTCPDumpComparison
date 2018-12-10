@@ -21,6 +21,8 @@ def plot_results(results: Dict) -> None:
     ax.plot(cpu_loads, base, label='Base')
     ax.plot(cpu_loads, proxy, label='Proxy')
     ax.plot(cpu_loads, tcpdump, label='TCPDump')
+    ax.set_xlabel('Additional CPU Load [%]')
+    ax.set_ylavel('Total Round-trip Time [ms]')
     ax.legend()
 
     plt.show()
