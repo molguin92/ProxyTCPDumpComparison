@@ -23,6 +23,7 @@ BENCHMARK_TYPES = ['base', 'tcpdump', 'proxy']
 TCPDUMP_PCAP = '/tmp/dump.pcap'
 TCPDUMP_CMD_PRE = ['tcpdump', '-s 0']
 TCPDUMP_CMD_POST = [f'-w {TCPDUMP_PCAP}']
+SAMPLES = 5000
 
 
 class Benchmark:
@@ -133,7 +134,7 @@ class Benchmark:
         results = self.docker.containers.run(
             DOCKER_PYTHON,
             stdout=True,
-            command=f'python -m local.client {host} {port}',
+            command=f'python -m local.client --samples {SAMPLES} {host} {port}',
             detach=False, auto_remove=True, cpuset_cpus=str(TARGET_CORE)
         )
 

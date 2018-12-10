@@ -1,4 +1,3 @@
-import sys
 from typing import Dict
 
 import matplotlib.pyplot as plt
@@ -13,7 +12,6 @@ def plot_results(results: Dict) -> None:
     tcpdump = []
 
     for load, l_results in results.items():
-        print(load, file=sys.stderr)
         cpu_loads.append(load)
         base.append(l_results['base'].mean())
         proxy.append(l_results['proxy'].mean())
