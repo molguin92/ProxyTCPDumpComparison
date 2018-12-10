@@ -1,28 +1,59 @@
 from typing import Dict
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
-def plot_results(results: Dict) -> None:
-    # results structure:
-    # {cpuload: {benchmark: {}}}
-    cpu_loads = []
-    base = []
-    proxy = []
-    tcpdump = []
+def data_to_df(results: Dict) -> pd.DataFrame:
+    rows = []
+    for cpu_load, l_results in results.items():
+        for bench_type, bench_results in l_results.items():
+            for i, sample in enumerate(bench_results):
+                rows.append((bench_type, cpu_load, i, sample))
 
-    for load, l_results in results.items():
-        cpu_loads.append(load)
-        base.append(l_results['base'].mean())
-        proxy.append(l_results['proxy'].mean())
-        tcpdump.append(l_results['tcpdump'].mean())
+    df = pd.DataFrame(rows, columns=['benchmark', 'cpu_load',
+                                     'sample_idx', 'rtt'])
+    return df.set_index(['benchmark', 'cpu_load', 'sample_idx'])
+
+
+def plot_results(results: pd.DataFrame) -> None:
+    data = results.reset_index()
 
     fig, ax = plt.subplots()
-    ax.plot(cpu_loads, base, label='Base')
-    ax.plot(cpu_loads, proxy, label='Proxy')
-    ax.plot(cpu_loads, tcpdump, label='TCPDump')
+
+    base = data[data['benchmark'] == 'base'].groupby(['cpu_load'])['rtt']
+    proxy = data[data['benchmark'] == 'proxy'].groupby(['cpu_load'])['rtt']
+    tcpdump = data[data['benchmark'] == 'tcpdump'].groupby(['cpu_load'])['rtt']
+
+    ax.errorbar(
+        data['cpu_load'].unique(),
+        base.mean(),
+        yerr=base.std(),
+        label='Base',
+        capsize=5
+    )
+    ax.errorbar(
+        data['cpu_load'].unique(),
+        proxy.mean(),
+        yerr=proxy.std(),
+        label='Proxy',
+        capsize=5
+    )
+    ax.errorbar(
+        data['cpu_load'].unique(),
+        tcpdump.mean(),
+        yerr=tcpdump.std(),
+        label='TCPDump',
+        capsize=5
+    )
     ax.set_xlabel('Additional CPU Load [%]')
-    ax.set_ylavel('Total Round-trip Time [ms]')
+    ax.set_ylabel('Total Round-trip Time [ms]')
     ax.legend()
 
     plt.show()
+
+
+if __name__ == '__main__':
+    data = pd.read_csv('./results.csv')
+    data = data.set_index(['benchmark', 'cpu_load', 'sample_idx'])
+    plot_results(data)

@@ -3,3 +3,4 @@ click
 numpy
 matplotlib
 scipy
+pandas

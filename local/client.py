@@ -7,13 +7,15 @@ import time
 import click
 import numpy as np
 
+WARMUP_COUNT = 100
+
 
 def send_recv(conn: socket,
               data_len: int = 512,
               samples: int = 500) -> np.ndarray:
     rtts = np.empty(samples)
     count = 0
-    initialized = False
+    init_count = 0
     while count < samples:
         # generate an array of random bytes
         data = os.urandom(data_len)
@@ -36,10 +38,10 @@ def send_recv(conn: socket,
         dt = (time.time() - ti) * 1000.0
 
         # if data is "corrupted" for some weird reason, don't count the stats
-        # also, discard the first sample to avoid effects due to connection
-        # setup times and such
-        if not initialized or incoming != data:
-            initialized = True
+        # also, discard the first 100 samples to avoid effects due
+        # to connection setup times and such
+        if init_count < WARMUP_COUNT or incoming != data:
+            init_count += 1
             continue
 
         # store stats

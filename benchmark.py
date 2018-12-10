@@ -12,18 +12,18 @@ import docker.errors
 import numpy as np
 
 from local.proxy import Proxy
-from postprocess import plot_results
+from postprocess import data_to_df, plot_results
 
 # this script deploys the experiments
 DOCKER_CPULOAD = 'molguin/cpuload'
 DOCKER_PYTHON = 'molguin/python'
-CPU_LOADS = [0.0, 0.25, 0.5, 0.75, 1.0]
+CPU_LOADS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 TARGET_CORE = 0
 BENCHMARK_TYPES = ['base', 'tcpdump', 'proxy']
 TCPDUMP_PCAP = '/tmp/dump.pcap'
 TCPDUMP_CMD_PRE = ['tcpdump', '-s 0']
 TCPDUMP_CMD_POST = [f'-w {TCPDUMP_PCAP}']
-SAMPLES = 5000
+SAMPLES = 50
 
 
 class Benchmark:
@@ -166,8 +166,11 @@ def main(host: str, port: int):
 
         results[cpu_load] = benchmark.results
 
-    print('Plotting...', file=sys.stderr)
-    plot_results(results)
+    # print('Plotting...', file=sys.stderr)
+    # plot_results(results)
+    data_df = data_to_df(results)
+    data_df.to_csv('./results.csv')
+    plot_results(data_df)
 
 
 if __name__ == '__main__':
