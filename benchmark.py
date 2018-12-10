@@ -59,7 +59,7 @@ class Benchmark:
 
         tcpdump_proc = subprocess.Popen(dump_cmd)
         # warmup time?
-        time.sleep(0.1)
+        time.sleep(1)
         if tcpdump_proc.poll():
             raise RuntimeError('Could not start TCPDump?')
 
@@ -128,7 +128,7 @@ class Benchmark:
                 detach=True, auto_remove=True
             )
             # wait for core to ramp up
-            time.sleep(1)
+            time.sleep(2)
 
         # run client
         results = self.docker.containers.run(
@@ -141,6 +141,8 @@ class Benchmark:
         # stop cpu load
         if self.cpu_load_container:
             self.cpu_load_container.kill()
+
+        time.sleep(2)
 
         parsed_results = []
         for sample in results.splitlines():

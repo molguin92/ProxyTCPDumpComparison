@@ -42,6 +42,7 @@ def send_recv(conn: socket,
         # to connection setup times and such
         if init_count < WARMUP_COUNT or incoming != data:
             init_count += 1
+            time.sleep(0.01)
             continue
 
         # store stats
