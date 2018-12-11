@@ -23,7 +23,7 @@ BENCHMARK_TYPES = ['base', 'tcpdump', 'proxy']
 TCPDUMP_PCAP = '/tmp/dump.pcap'
 TCPDUMP_CMD_PRE = ['tcpdump', '-s 0']
 TCPDUMP_CMD_POST = [f'-w {TCPDUMP_PCAP}']
-SAMPLES = 7500
+SAMPLES = 10000
 
 
 class Benchmark:
