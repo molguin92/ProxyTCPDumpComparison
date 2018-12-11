@@ -25,31 +25,38 @@ def plot_results(results: pd.DataFrame) -> None:
     proxy = data[data['benchmark'] == 'proxy'].groupby(['cpu_load'])['rtt']
     tcpdump = data[data['benchmark'] == 'tcpdump'].groupby(['cpu_load'])['rtt']
 
+    cpu_loads = data['cpu_load'].unique() * 100.0
+
     ax.errorbar(
-        data['cpu_load'].unique(),
+        cpu_loads,
         base.mean(),
         yerr=base.std(),
+        marker='o',
         label='Base',
         capsize=5
     )
     ax.errorbar(
-        data['cpu_load'].unique(),
+        cpu_loads,
         proxy.mean(),
         yerr=proxy.std(),
+        marker='v',
         label='Proxy',
-        capsize=5
+        capsize=10
     )
     ax.errorbar(
-        data['cpu_load'].unique(),
+        cpu_loads,
         tcpdump.mean(),
         yerr=tcpdump.std(),
+        marker='^',
         label='TCPDump',
-        capsize=5
+        capsize=15
     )
     ax.set_xlabel('Additional CPU Load [%]')
     ax.set_ylabel('Total Round-trip Time [ms]')
+    ax.set_ylim([20, 35])
     ax.legend()
 
+    fig.savefig('results.png')
     plt.show()
 
 
