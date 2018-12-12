@@ -31,6 +31,9 @@ def plot_results(results: pd.DataFrame) -> None:
 
     cpu_loads = data['cpu_load'].unique()
 
+    # add extra legend
+    ax.plot([], [], ' ', label='Errorbars indicate 95% confidence interval.')
+
     for i, (btype, mrkr) in enumerate(zip(bench_types, markers)):
         rtt_means = np.empty(len(cpu_loads))
         rtt_stds = np.empty(len(cpu_loads))
@@ -55,6 +58,7 @@ def plot_results(results: pd.DataFrame) -> None:
 
     ax.set_xlabel('Additional CPU Load [%]')
     ax.set_ylabel('Total Round-trip Time [ms]')
+    ax.set_ylim([23, 27.5])
     ax.legend()
 
     fig.savefig('results.png')
