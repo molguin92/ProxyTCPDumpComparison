@@ -1,7 +1,17 @@
 from typing import Dict
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+
+
+def random_sample_means(data: np.array,
+                        sample_size: int,
+                        num_sample_means: int) -> np.array:
+    means = np.empty(num_sample_means)
+    for i in range(num_sample_means):
+        means[i] = np.random.choice(data, sample_size, replace=False).mean()
+    return means
 
 
 def data_to_df(results: Dict) -> pd.DataFrame:
@@ -21,36 +31,30 @@ def plot_results(results: pd.DataFrame) -> None:
 
     fig, ax = plt.subplots()
 
-    base = data[data['benchmark'] == 'base'].groupby(['cpu_load'])['rtt']
-    proxy = data[data['benchmark'] == 'proxy'].groupby(['cpu_load'])['rtt']
-    tcpdump = data[data['benchmark'] == 'tcpdump'].groupby(['cpu_load'])['rtt']
+    bench_types = ['base', 'proxy', 'tcpdump']
+    init_capsize = 5
+    markers = ['o', '^', 'v']
 
-    cpu_loads = data['cpu_load'].unique() * 100.0
+    cpu_loads = data['cpu_load'].unique()
 
-    ax.errorbar(
-        cpu_loads,
-        base.mean(),
-        yerr=base.std(),
-        marker='o',
-        label='Base',
-        capsize=5
-    )
-    ax.errorbar(
-        cpu_loads,
-        proxy.mean(),
-        yerr=proxy.std(),
-        marker='v',
-        label='Proxy',
-        capsize=10
-    )
-    ax.errorbar(
-        cpu_loads,
-        tcpdump.mean(),
-        yerr=tcpdump.std(),
-        marker='^',
-        label='TCPDump',
-        capsize=15
-    )
+    for i, (btype, mrkr) in enumerate(zip(bench_types, markers)):
+        rtt_means = np.empty(len(cpu_loads))
+        for j, load in enumerate(cpu_loads):
+            rtts = data[(data['benchmark'] == btype) &
+                        (data['cpu_load'] == load)]['rtt']
+            means = random_sample_means(rtts, sample_size=50,
+                                        num_sample_means=100)
+            rtt_means[j] = np.random.choice(means)
+
+        ax.errorbar(
+            cpu_loads * 100.0,
+            rtt_means,
+            # yerr=rtts.std(),
+            marker=mrkr,
+            label=btype.upper(),
+            capsize=5 + (i * init_capsize)
+        )
+
     ax.set_xlabel('Additional CPU Load [%]')
     ax.set_ylabel('Total Round-trip Time [ms]')
     ax.set_ylim([20, 35])
