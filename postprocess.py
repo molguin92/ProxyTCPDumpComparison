@@ -5,15 +5,6 @@ import numpy as np
 import pandas as pd
 
 
-def random_sample_means(data: np.array,
-                        sample_size: int,
-                        num_sample_means: int) -> np.array:
-    means = np.empty(num_sample_means)
-    for i in range(num_sample_means):
-        means[i] = np.random.choice(data, sample_size, replace=False).mean()
-    return means
-
-
 def data_to_df(results: Dict) -> pd.DataFrame:
     rows = []
     for cpu_load, l_results in results.items():
@@ -35,21 +26,28 @@ def plot_results(results: pd.DataFrame) -> None:
     init_capsize = 5
     markers = ['o', '^', 'v']
 
+    sample_sz = 1000
+    z = 1.96
+
     cpu_loads = data['cpu_load'].unique()
 
     for i, (btype, mrkr) in enumerate(zip(bench_types, markers)):
         rtt_means = np.empty(len(cpu_loads))
+        rtt_stds = np.empty(len(cpu_loads))
+        conf_intervals = np.empty(len(cpu_loads))
         for j, load in enumerate(cpu_loads):
-            rtts = data[(data['benchmark'] == btype) &
-                        (data['cpu_load'] == load)]['rtt']
-            means = random_sample_means(rtts, sample_size=50,
-                                        num_sample_means=100)
-            rtt_means[j] = np.random.choice(means)
+            sample = np.random.choice(
+                data[(data['benchmark'] == btype) &
+                     (data['cpu_load'] == load)]['rtt'],
+                size=sample_sz, replace=False)
+            rtt_means[j] = sample.mean()
+            rtt_stds[j] = sample.std()
+            conf_intervals[j] = z * (rtt_stds[j] / np.sqrt(sample_sz))
 
         ax.errorbar(
             cpu_loads * 100.0,
             rtt_means,
-            # yerr=rtts.std(),
+            yerr=conf_intervals,
             marker=mrkr,
             label=btype.upper(),
             capsize=5 + (i * init_capsize)
@@ -57,7 +55,6 @@ def plot_results(results: pd.DataFrame) -> None:
 
     ax.set_xlabel('Additional CPU Load [%]')
     ax.set_ylabel('Total Round-trip Time [ms]')
-    ax.set_ylim([20, 35])
     ax.legend()
 
     fig.savefig('results.png')
