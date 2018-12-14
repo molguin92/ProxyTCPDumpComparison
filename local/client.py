@@ -14,20 +14,22 @@ WARMUP_COUNT = 25
 
 
 def send_recv(conn: socket,
-              data_len: int = 512,
+              data_len: int = 50 * 1024,  # 50 kib
               samples: int = 500) -> np.ndarray:
     rtts = np.empty(samples)
     count = 0
     init_count = 0
     while count < samples:
         # generate an array of random bytes
+        # by default this is 50kib to emulate a "heavy" downlink from cloudlet
+        # to devices
         data = os.urandom(data_len)
         conn.sendall(struct.pack(f'>I{data_len}s', data_len, data))
         # timestamp
         ti = time.time()
 
-        # get the echo
-        echo = recvmsg(conn)
+        # get the img
+        _ = recvmsg(conn)
 
         # timestamp delta t in milliseconds
         dt = (time.time() - ti) * 1000.0

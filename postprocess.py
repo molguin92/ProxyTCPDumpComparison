@@ -58,7 +58,7 @@ def plot_results(results: pd.DataFrame) -> None:
 
     ax.set_xlabel('Additional CPU Load [%]')
     ax.set_ylabel('Avg. Total Round-trip Time [ms]')
-    ax.set_ylim([23, 27.5])
+    # ax.set_ylim([23, 27.5])
     ax.legend()
 
     fig.savefig('results.png')
