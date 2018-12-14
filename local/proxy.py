@@ -1,11 +1,14 @@
 import multiprocessing.pool
 import signal
 import socket
+import struct
 import sys
 import time
 from typing import Any
 
 import click
+
+from netutils import recvmsg
 
 
 class _ShutDownException(Exception):
@@ -25,10 +28,11 @@ def link_with_load(in_sock: socket.socket, out_sock: socket.socket):
     times = [0]
     while True:
         try:
-            data = in_sock.recv(1024)
+            data = recvmsg(in_sock)
+            d_len = len(data)
             ti = time.time()
             times[0] = ti * 1000.0
-            out_sock.sendall(data)
+            out_sock.sendall(struct.pack(f'>I{d_len}s', d_len, data))
         except _ShutDownException as e:
             print('Received shutdown signal...', file=sys.stderr)
             break
