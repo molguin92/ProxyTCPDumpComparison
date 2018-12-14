@@ -1,13 +1,16 @@
 import os
 import signal
 import socket
+import struct
 import sys
 import time
 
 import click
 import numpy as np
 
-WARMUP_COUNT = 100
+from netutils import recvmsg
+
+WARMUP_COUNT = 25
 
 
 def send_recv(conn: socket,
@@ -19,28 +22,19 @@ def send_recv(conn: socket,
     while count < samples:
         # generate an array of random bytes
         data = os.urandom(data_len)
-        conn.sendall(data)
+        conn.sendall(struct.pack(f'>I{data_len}s', data_len, data))
         # timestamp
         ti = time.time()
 
         # get the echo
-        incoming = []
-        total_recv = 0
-        while total_recv < data_len:
-            d = conn.recv(data_len)
-            if d == b'':
-                raise RuntimeError('socket connection broken')
-            incoming.append(d)
-            total_recv += len(d)
-        incoming = b''.join(incoming)
+        echo = recvmsg(conn)
 
         # timestamp delta t in milliseconds
         dt = (time.time() - ti) * 1000.0
 
-        # if data is "corrupted" for some weird reason, don't count the stats
-        # also, discard the first 100 samples to avoid effects due
+        # discard the first WARMUP_COUNT samples to avoid effects due
         # to connection setup times and such
-        if init_count < WARMUP_COUNT or incoming != data:
+        if init_count < WARMUP_COUNT:
             init_count += 1
             time.sleep(0.01)
             continue

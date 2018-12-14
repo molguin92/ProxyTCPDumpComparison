@@ -1,7 +1,11 @@
-from socketserver import ThreadingTCPServer, BaseRequestHandler
-from socket import SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP, TCP_KEEPIDLE, \
-    TCP_KEEPCNT, TCP_KEEPINTVL
+import struct
+from socket import IPPROTO_TCP, SOL_SOCKET, SO_KEEPALIVE, TCP_KEEPCNT, \
+    TCP_KEEPIDLE, TCP_KEEPINTVL
+from socketserver import BaseRequestHandler, ThreadingTCPServer
+
 import click
+
+from netutils import recvmsg
 
 
 def set_keepalive_linux(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
@@ -17,17 +21,28 @@ def set_keepalive_linux(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
 
 
 class EchoHandler(BaseRequestHandler):
-    # handler for the server which simply echoes the incoming data
+    # handler for the server which simply echoes the incoming data multiplied
+    # by a certain factor in order to fake a heavy downlink connection
+
+    MULT_FACTOR = 500
+
+    # mult factor chosen as 500 since by default the data sent from the
+    # client consists of 512 bytes. 500 x 512bytes = 256 Kb, which is a
+    # reasonable size for a small image.
 
     def setup(self):
         set_keepalive_linux(self.request)
 
     def handle(self):
-        # echo up to a kB of data
         print('Client connected:', self.client_address[0])
         while True:
             try:
-                self.request.sendall(self.request.recv(1024))
+                data = recvmsg(self.request)
+                # repeat data MULT_FACTOR times and send
+                data = data * self.MULT_FACTOR
+                out_len = len(data)
+                self.request.sendall(
+                    struct.pack(f'>I{out_len}s', out_len, data))
             except Exception:
                 print('Client disconnected:', self.client_address[0])
                 return
