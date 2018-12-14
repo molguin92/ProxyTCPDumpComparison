@@ -30,7 +30,7 @@ class EchoHandler(BaseRequestHandler):
 
     def setup(self):
         set_keepalive_linux(self.request)
-        with open(self.IMG_PATH, 'r') as img_f:
+        with open(self.IMG_PATH, 'rb') as img_f:
             self.img = base64.b64encode(img_f.read())
         self.img_len = len(self.img)
 
