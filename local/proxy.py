@@ -107,13 +107,26 @@ class Proxy:
             print(f'Shutting down proxy...', file=sys.stderr)
 
             if self.conn:
-                self.conn.shutdown(socket.SHUT_RDWR)
-                self.conn.close()
+                try:
+                    self.conn.shutdown(socket.SHUT_RDWR)
+                    self.conn.close()
+                except Exception:
+                    # if socket is already closed, do nothing.
+                    pass
 
-            self.server_socket.shutdown(socket.SHUT_RDWR)
-            self.client_socket.shutdown(socket.SHUT_RDWR)
-            self.server_socket.close()
-            self.client_socket.close()
+            try:
+                self.server_socket.shutdown(socket.SHUT_RDWR)
+                self.server_socket.close()
+            except Exception:
+                # if socket is already closed, do nothing.
+                pass
+
+            try:
+                self.client_socket.shutdown(socket.SHUT_RDWR)
+                self.client_socket.close()
+            except Exception:
+                # if socket is already closed, do nothing.
+                pass
 
             # wait for processes
             if self.uplink_proc:
